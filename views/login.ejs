@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prestige SMS - Login</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <style>
+        :root {
+            --bg-primary: #1e1e2f;
+            --bg-sidebar: #27293d;
+            --accent: #e14eca;
+            --accent-hover: #c13ab0;
+        }
+        
+        body {
+            background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-sidebar) 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        .login-container {
+            background: var(--bg-sidebar);
+            border-radius: 20px;
+            padding: 3rem;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(225, 78, 202, 0.3);
+            max-width: 450px;
+            width: 100%;
+        }
+        
+        .login-header {
+            text-align: center;
+            margin-bottom: 2.5rem;
+        }
+        
+        .login-header i {
+            font-size: 4rem;
+            color: var(--accent);
+            margin-bottom: 1rem;
+        }
+        
+        .login-header h1 {
+            color: #ffffff;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+        
+        .login-header p {
+            color: #b8b8b8;
+            font-size: 0.9rem;
+        }
+        
+        .form-label {
+            color: #ffffff;
+            font-weight: 600;
+            margin-bottom: 0.75rem;
+        }
+        
+        .form-control {
+            background-color: var(--bg-primary);
+            border: 1px solid rgba(225, 78, 202, 0.3);
+            color: #ffffff;
+            padding: 0.75rem 1rem;
+            border-radius: 10px;
+            font-size: 1.1rem;
+            letter-spacing: 0.1em;
+            text-align: center;
+        }
+        
+        .form-control:focus {
+            background-color: var(--bg-primary);
+            border-color: var(--accent);
+            color: #ffffff;
+            box-shadow: 0 0 0 0.25rem rgba(225, 78, 202, 0.25);
+        }
+        
+        .form-control::placeholder {
+            color: rgba(255, 255, 255, 0.4);
+        }
+        
+        .btn-login {
+            background: linear-gradient(135deg, var(--accent) 0%, var(--accent-hover) 100%);
+            border: none;
+            color: #ffffff;
+            font-weight: 700;
+            padding: 0.875rem;
+            border-radius: 10px;
+            width: 100%;
+            font-size: 1.1rem;
+            transition: all 0.3s ease;
+            margin-top: 1rem;
+        }
+        
+        .btn-login:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(225, 78, 202, 0.4);
+        }
+        
+        .btn-login:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        
+        .alert {
+            border-radius: 10px;
+            border: none;
+            margin-bottom: 1.5rem;
+        }
+        
+        .alert-danger {
+            background-color: rgba(255, 61, 113, 0.2);
+            color: #ff3d71;
+            border-left: 3px solid #ff3d71;
+        }
+        
+        .security-note {
+            text-align: center;
+            margin-top: 2rem;
+            color: #b8b8b8;
+            font-size: 0.85rem;
+        }
+        
+        .security-note i {
+            color: var(--accent);
+            margin-right: 0.5rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-header">
+            <i class="bi bi-shield-lock-fill"></i>
+            <h1>Prestige SMS</h1>
+            <p>Enter PIN to Access Portal</p>
+        </div>
+        
+        <% if (error) { %>
+            <div class="alert alert-danger">
+                <i class="bi bi-exclamation-triangle-fill"></i> <%= error %>
+            </div>
+        <% } %>
+        
+        <form id="loginForm" onsubmit="handleLogin(event)">
+            <div class="mb-4">
+                <label for="pin" class="form-label">
+                    <i class="bi bi-key-fill"></i> Security PIN
+                </label>
+                <input 
+                    type="password" 
+                    class="form-control" 
+                    id="pin" 
+                    name="pin" 
+                    placeholder="Enter 4-digit PIN" 
+                    maxlength="10"
+                    required 
+                    autofocus
+                >
+            </div>
+            
+            <button type="submit" class="btn btn-login" id="loginBtn">
+                <i class="bi bi-box-arrow-in-right"></i> Authenticate
+            </button>
+        </form>
+        
+        <div class="security-note">
+            <i class="bi bi-info-circle"></i>
+            Secure access required for SMS operations
+        </div>
+    </div>
+    
+    <script>
+        async function handleLogin(event) {
+            event.preventDefault();
+            
+            const form = event.target;
+            const pin = document.getElementById('pin').value;
+            const loginBtn = document.getElementById('loginBtn');
+            const originalText = loginBtn.innerHTML;
+            
+            loginBtn.disabled = true;
+            loginBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Verifying...';
+            
+            try {
+                const response = await fetch('/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ pin })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    window.location.href = '/';
+                } else {
+                    alert('Error: ' + (result.error || 'Invalid PIN'));
+                    loginBtn.disabled = false;
+                    loginBtn.innerHTML = originalText;
+                    document.getElementById('pin').value = '';
+                    document.getElementById('pin').focus();
+                }
+            } catch (error) {
+                console.error('Login error:', error);
+                alert('Error connecting to server. Please try again.');
+                loginBtn.disabled = false;
+                loginBtn.innerHTML = originalText;
+            }
+        }
+        
+        // Auto-focus PIN input
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('pin').focus();
+        });
+    </script>
+</body>
+</html>
+

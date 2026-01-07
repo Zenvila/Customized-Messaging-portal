@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="refresh" content="30">
+    <title>Prestige SMS Portal</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <!-- Header -->
+    <nav class="navbar navbar-dark prestige-header">
+        <div class="container-fluid">
+            <span class="navbar-brand mb-0 h1">
+                <i class="bi bi-chat-dots-fill"></i> Prestige SMS Portal
+            </span>
+            <div class="d-flex align-items-center">
+                <span class="badge bg-success me-2">
+                    <i class="bi bi-shield-check"></i> Authenticated
+                </span>
+                <button class="btn btn-sm btn-outline-light ms-2" onclick="handleLogout()" title="Logout">
+                    <i class="bi bi-box-arrow-right"></i> Logout
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid h-100">
+        <div class="row h-100">
+            <!-- Left Sidebar: Contacts -->
+            <div class="col-md-3 p-0 prestige-sidebar">
+                <div class="sidebar-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0"><i class="bi bi-people-fill"></i> Contacts</h5>
+                        <button class="btn btn-sm prestige-btn-add" onclick="openAddContactModal()" title="Add New Contact">
+                            <i class="bi bi-person-plus-fill"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="contacts-list" id="contactsList">
+                    <% if (contacts.length === 0) { %>
+                        <div class="empty-state">
+                            <i class="bi bi-inbox"></i>
+                            <p>No contacts yet</p>
+                        </div>
+                    <% } else { %>
+                        <% contacts.forEach(contact => { %>
+                            <div class="contact-item <%= selectedPhone === contact.phone ? 'active' : '' %>" 
+                                 onclick="selectContact('<%= contact.phone %>', '<%= contact.name || contact.phone %>')"
+                                 oncontextmenu="event.preventDefault(); openEditContactModal('<%= contact.phone %>', '<%= (contact.name || contact.phone).replace(/'/g, "\\'") %>');">
+                                <div class="contact-avatar">
+                                    <i class="bi bi-person-circle"></i>
+                                </div>
+                                <div class="contact-info">
+                                    <div class="contact-name"><%= contact.name || contact.phone %></div>
+                                    <div class="contact-phone"><%= contact.phone %></div>
+                                    <div class="contact-line">
+                                        <i class="bi bi-telephone-outbound"></i> 
+                                        <span class="line-badge"><%= contact.recommendedLine || 'HU Main' %></span>
+                                    </div>
+                                </div>
+                                <div class="contact-actions" onclick="event.stopPropagation(); openEditContactModal('<%= contact.phone %>', '<%= (contact.name || contact.phone).replace(/'/g, "\\'") %>');">
+                                    <i class="bi bi-pencil-square"></i>
+                                </div>
+                            </div>
+                        <% }) %>
+                    <% } %>
+                </div>
+            </div>
+
+            <!-- Main Area: Chat -->
+            <div class="col-md-6 p-0 prestige-chat">
+                <% if (!selectedPhone) { %>
+                    <div class="chat-empty">
+                        <i class="bi bi-chat-left-text"></i>
+                        <h4>Select a contact to start messaging</h4>
+                    </div>
+                <% } else { %>
+                    <div class="chat-header">
+                        <div class="chat-contact-info">
+                            <i class="bi bi-person-circle"></i>
+                            <div>
+                                <div class="chat-contact-name"><%= contacts.find(c => c.phone === selectedPhone)?.name || selectedPhone %></div>
+                                <div class="chat-contact-phone"><%= selectedPhone %></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="chat-messages" id="chatMessages">
+                        <% messages.forEach(msg => { %>
+                            <div class="message <%= msg.direction === 'inbound' ? 'inbound' : 'outbound' %>">
+                                <div class="message-bubble">
+                                    <div class="message-line-badge"><%= msg.senderLine %></div>
+                                    <div class="message-text"><%= msg.text %></div>
+                                    <div class="message-footer">
+                                        <div class="message-time"><%= new Date(msg.timestamp).toLocaleString() %></div>
+                                        <% if (msg.direction === 'outbound') { %>
+                                            <div class="message-status status-<%= msg.status || 'pending' %>">
+                                                <% if (msg.status === 'delivered') { %>
+                                                    <i class="bi bi-check-circle-fill"></i> Delivered
+                                                <% } else if (msg.status === 'sent') { %>
+                                                    <i class="bi bi-check"></i> Sent
+                                                <% } else if (msg.status === 'failed') { %>
+                                                    <i class="bi bi-x-circle-fill"></i> Failed
+                                                <% } else { %>
+                                                    <i class="bi bi-clock"></i> Pending
+                                                <% } %>
+                                            </div>
+                                        <% } %>
+                                    </div>
+                                </div>
+                            </div>
+                        <% }) %>
+                    </div>
+                    <div class="chat-input-container">
+                        <form id="sendForm" onsubmit="sendMessage(event)">
+                            <div class="mb-2">
+                                <label class="form-label-small">
+                                    <i class="bi bi-telephone-fill"></i> Send From:
+                                    <span class="recommended-badge">
+                                        <i class="bi bi-lightbulb"></i> Recommended: <%= contacts.find(c => c.phone === selectedPhone)?.recommendedLine || 'HU Main' %>
+                                    </span>
+                                </label>
+                                <select class="form-select form-select-sm mb-2" name="from_number" id="from_number" required>
+                                    <% 
+                                        const selectedContact = contacts.find(c => c.phone === selectedPhone);
+                                        const recommendedLineNum = selectedContact?.recommendedLineNumber || businessLines[0].number;
+                                    %>
+                                    <% businessLines.forEach((line, index) => { %>
+                                        <option value="<%= line.number %>" <%= line.number === recommendedLineNum ? 'selected' : '' %>>
+                                            <%= line.name %> - <%= line.number %>
+                                        </option>
+                                    <% }) %>
+                                </select>
+                            </div>
+                            <div class="input-group">
+                                <input type="text" class="form-control" name="message_content" id="message_content" 
+                                       placeholder="Type your message here..." required>
+                                <button type="submit" class="btn prestige-btn">
+                                    <i class="bi bi-send-fill"></i> Send
+                                </button>
+                            </div>
+                            <input type="hidden" name="to_number" value="<%= selectedPhone %>">
+                        </form>
+                    </div>
+                <% } %>
+            </div>
+
+            <!-- Right Panel: System Logs -->
+            <div class="col-md-3 p-0 prestige-logs">
+                <div class="logs-header">
+                    <h5 class="mb-0"><i class="bi bi-terminal"></i> System Logs</h5>
+                </div>
+                <div class="logs-content" id="logsContent">
+                    <% if (logs.length === 0) { %>
+                        <div class="empty-state">
+                            <i class="bi bi-info-circle"></i>
+                            <p>No logs yet</p>
+                        </div>
+                    <% } else { %>
+                        <% logs.forEach(log => { %>
+                            <div class="log-item <%= log.status === 'error' ? 'log-error' : 'log-success' %>">
+                                <div class="log-time"><%= new Date(log.timestamp).toLocaleTimeString() %></div>
+                                <div class="log-action"><%= log.action %></div>
+                                <div class="log-details"><%= log.details %></div>
+                            </div>
+                        <% }) %>
+                    <% } %>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add/Edit Contact Modal -->
+    <div class="modal fade" id="contactModal" tabindex="-1" aria-labelledby="contactModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content prestige-modal">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="contactModalLabel">
+                        <i class="bi bi-person-plus-fill"></i> <span id="modalTitle">Add New Contact</span>
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="contactForm" onsubmit="saveContact(event)">
+                        <div class="mb-3">
+                            <label for="contactPhone" class="form-label">
+                                <i class="bi bi-telephone-fill"></i> Phone Number
+                            </label>
+                            <input type="text" class="form-control" id="contactPhone" name="phone" 
+                                   placeholder="+36201234567" required pattern="^\+[1-9]\d{1,14}$">
+                            <small class="form-text text-muted">Include country code (e.g., +36 for Hungary, +1 for US)</small>
+                        </div>
+                        <div class="mb-3">
+                            <label for="contactName" class="form-label">
+                                <i class="bi bi-person-fill"></i> Contact Name
+                            </label>
+                            <input type="text" class="form-control" id="contactName" name="name" 
+                                   placeholder="John Doe">
+                            <small class="form-text text-muted">Optional: Add a friendly name</small>
+                        </div>
+                        <input type="hidden" id="contactId" name="id">
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn prestige-btn" onclick="document.getElementById('contactForm').requestSubmit()">
+                        <i class="bi bi-check-circle"></i> Save Contact
+                    </button>
+                    <button type="button" class="btn btn-danger" id="deleteContactBtn" onclick="deleteContact()" style="display: none;">
+                        <i class="bi bi-trash"></i> Delete
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/js/app.js"></script>
+</body>
+</html>
